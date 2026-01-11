@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日落單字跑酷 Sunset Vocabulary Run</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Roboto+Mono:wght@500&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #2c3e50;
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        /* 分數顯示 */
+        #score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        /* 通用屏幕樣式 */
+        .screen {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+            transition: opacity 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #leaderboard {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 360px;
+            text-align: left;
+        }
+
+        #leaderboard h2 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            color: #f6d365;
+            letter-spacing: 1px;
+        }
+
+        #leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 16px;
+        }
+
+        #leaderboard-list li.current {
+            border: 1px solid rgba(246, 211, 101, 0.8);
+            background: rgba(246, 211, 101, 0.18);
+        }
+
+        #leaderboard-empty {
+            color: #bbb;
+            font-size: 14px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 48px;
+            letter-spacing: 2px;
+            background: linear-gradient(to bottom, #f6d365, #fda085);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 18px;
+            color: #ddd;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        button.action-btn {
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            color: #333;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button.action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 154, 158, 0.6);
+        }
+
+        button.action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* --- 測驗面板樣式 --- */
+        #quiz-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 450px; /* 稍微加寬以容納拼寫 */
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 100, 100, 0.3);
+            border: 2px solid #ff4d4d;
+            display: none;
+            pointer-events: auto;
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+        }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -40%) scale(0.8); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        #quiz-timer-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            margin-bottom: 20px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #quiz-timer-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #f0ff00, #ff0000);
+            transform-origin: left;
+            transition: width 0.1s linear;
+        }
+
+        .quiz-question {
+            font-family: 'Noto Sans TC', sans-serif; /* 改回支援中文的字體 */
+            font-size: 32px;
+            color: #fff;
+            margin-bottom: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 40px;
+        }
+
+        .quiz-hint {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+
+        /* 選擇題樣式 */
+        .quiz-options-mc {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .quiz-option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            padding-left: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quiz-option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #fff;
+        }
+
+        .quiz-option-btn.correct {
+            background: #2ecc71 !important;
+            border-color: #2ecc71 !important;
+        }
+
+        .quiz-option-btn.wrong {
+            background: #e74c3c !important;
+            border-color: #e74c3c !important;
+        }
+
+        /* 拼寫/重組題專用樣式 */
+        .quiz-answer-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #fff;
+            min-height: 50px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            gap: 8px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 24px;
+            color: #ffd200;
+        }
+
+        .quiz-pieces-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .quiz-piece {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 18px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .quiz-piece:active {
+            transform: scale(0.95);
+        }
+
+        .quiz-piece.used {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="score-board" class="hidden">
+            <span style="font-size: 32px;" id="distanceDisplay">0</span> m
+        </div>
+
+        <div id="startScreen" class="screen">
+            <h1>日落單字跑酷</h1>
+            <p><strong>遊戲說明</strong><br>當出現 "JUMP" 提示時，按下跳躍鍵進行答題。<br>包含選擇題、拼字與重組句子！</p>
+            <button id="startBtn" class="action-btn">開始挑戰</button>
+        </div>
+
+        <!-- 測驗介面 -->
+        <div id="quiz-panel">
+            <div id="quiz-timer-bar"><div id="quiz-timer-fill"></div></div>
+            <div class="quiz-hint" id="quiz-instruction">選擇正確的意思</div>
+            <div class="quiz-question" id="quiz-question-text">APPLE</div>
+            
+            <!-- 選擇題區域 -->
+            <div class="quiz-options-mc" id="quiz-options-mc"></div>
+
+            <!-- 拼寫/重組題區域 -->
+            <div id="quiz-ordering-area" class="hidden">
+                <div class="quiz-answer-area" id="quiz-answer-zone"></div>
+                <div class="quiz-pieces-container" id="quiz-pieces-zone"></div>
+            </div>
+        </div>
+
+        <div id="gameOverScreen" class="screen hidden">
+            <h1 id="gameOverTitle">摔倒了!</h1>
+            <p id="gameOverMsg">滑行距離: <span id="finalScore">0</span> m</p>
+            <div id="leaderboard">
+                <h2>排行榜</h2>
+                <div id="leaderboard-empty">尚無紀錄</div>
+                <ul id="leaderboard-list"></ul>
+            </div>
+            <button id="restartBtn" class="action-btn">再來一次</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 題庫資料 (Vocabulary) ---
+        // 定義資料結構： { en: "English", zh: "中文" }
+        // 程式會自動判斷題型
+        const vocabularyData = [
+            { en: "sunny", zh: "晴朗的" },
+            { en: "rainy", zh: "下雨的" },
+            { en: "windy", zh: "起風的" },
+            { en: "hot", zh: "炎熱的" },
+            { en: "cloudy", zh: "多雲的" },
+            { en: "cold", zh: "寒冷的" },
+            { en: "warm", zh: "溫暖的" },
+            { en: "cool", zh: "涼爽的" },
+            { en: "weather", zh: "天氣" },
+            { en: "How's the weather?", zh: "天氣如何？" },
+            { en: "It's sunny.", zh: "天氣很晴朗。" },
+            { en: "Is it hot?", zh: "天氣熱嗎？" },
+            { en: "Yes, it is.", zh: "是的，很熱。" },
+            { en: "No, it isn't. It's cool.", zh: "不，不熱，天氣很涼爽。" },
+            { en: "music", zh: "音樂" },
+            { en: "math", zh: "數學" },
+            { en: "English", zh: "英語" },
+            { en: "science", zh: "自然" },
+            { en: "social studies", zh: "社會" },
+            { en: "PE", zh: "體育" },
+            { en: "subject", zh: "科目" },
+            { en: "spring couplets", zh: "春聯" },
+            { en: "lion dance", zh: "舞獅" },
+            { en: "firecrackers", zh: "鞭炮" },
+            { en: "rice cake", zh: "年糕" },
+            { en: "hot pot", zh: "火鍋" },
+            { en: "lucky money", zh: "壓歲錢" },
+            { en: "family", zh: "家人" },
+            { en: "father", zh: "爸爸" },
+            { en: "mother", zh: "媽媽" },
+            { en: "brother", zh: "兄弟" },
+            { en: "sister", zh: "姊妹" },
+            { en: "grandpa", zh: "爺爺" },
+            { en: "grandma", zh: "奶奶" },
+            { en: "school", zh: "學校" },
+            { en: "teacher", zh: "老師" },
+            { en: "student", zh: "學生" },
+            { en: "class", zh: "班級" },
+            { en: "book", zh: "書" },
+            { en: "pencil", zh: "鉛筆" },
+            { en: "eraser", zh: "橡皮擦" },
+            { en: "bag", zh: "書包" },
+            { en: "desk", zh: "書桌" },
+            { en: "chair", zh: "椅子" },
+            { en: "apple", zh: "蘋果" },
+            { en: "banana", zh: "香蕉" },
+            { en: "orange", zh: "橘子" },
+            { en: "water", zh: "水" },
+            { en: "milk", zh: "牛奶" },
+            { en: "rice", zh: "米飯" },
+            { en: "noodles", zh: "麵條" },
+            { en: "dog", zh: "狗" },
+            { en: "cat", zh: "貓" },
+            { en: "bird", zh: "鳥" },
+            { en: "sun", zh: "太陽" },
+            { en: "moon", zh: "月亮" },
+            { en: "star", zh: "星星" }
+        ];
+
+        // --- 2. 遊戲引擎設置 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const scoreBoard = document.getElementById('score-board');
+        const distanceDisplay = document.getElementById('distanceDisplay');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const leaderboardEmpty = document.getElementById('leaderboard-empty');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const gameOverMsg = document.getElementById('gameOverMsg');
+
+        // Quiz UI 元素
+        const quizPanel = document.getElementById('quiz-panel');
+        const quizInstruction = document.getElementById('quiz-instruction');
+        const quizQuestionText = document.getElementById('quiz-question-text');
+        const quizOptionsMc = document.getElementById('quiz-options-mc');
+        const quizOrderingArea = document.getElementById('quiz-ordering-area');
+        const quizAnswerZone = document.getElementById('quiz-answer-zone');
+        const quizPiecesZone = document.getElementById('quiz-pieces-zone');
+        const quizTimerFill = document.getElementById('quiz-timer-fill');
+
+        // 音效與背景音樂
+        const sfxJump = new Audio('jumpp.mp3');
+        const sfxSpell = new Audio('don-1.MP3');
+        const sfxWrong = new Audio('fault.mp3');
+        const sfxDead = new Audio('dead.mp3');
+        const sfxClock = new Audio('clock.mp3');
+        sfxClock.loop = true;
+
+        const bgmTracks = [
+            'mus-1.mp3',
+            'mus-2.mp3',
+            'mus-3.mp3',
+            'mus-4.mp3',
+            'mus-5.mp3'
+        ].map((src) => new Audio(src));
+        let bgmIndex = 0;
+        let bgmStarted = false;
+
+        function playSfx(audio) {
+            if (!audio) return;
+            audio.currentTime = 0;
+            const p = audio.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+
+        function startBgm() {
+            if (bgmStarted || bgmTracks.length === 0) return;
+            bgmStarted = true;
+            bgmTracks.forEach((track, idx) => {
+                track.onended = () => {
+                    bgmIndex = (idx + 1) % bgmTracks.length;
+                    const next = bgmTracks[bgmIndex];
+                    const p = next.play();
+                    if (p && typeof p.catch === 'function') p.catch(() => {});
+                };
+            });
+            const p = bgmTracks[bgmIndex].play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => { bgmStarted = false; });
+            }
+        }
+
+        function startClockSound() {
+            if (!sfxClock) return;
+            sfxClock.currentTime = 0;
+            const p = sfxClock.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+
+        function stopClockSound() {
+            if (!sfxClock) return;
+            sfxClock.pause();
+            sfxClock.currentTime = 0;
+        }
+
+        const LEADERBOARD_KEY = 'run-sun-leaderboard';
+        const LEADERBOARD_LIMIT = 5;
+
+        function loadLeaderboard() {
+            try {
+                const raw = localStorage.getItem(LEADERBOARD_KEY);
+                const data = raw ? JSON.parse(raw) : [];
+                return Array.isArray(data) ? data : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function saveLeaderboard(list) {
+            try {
+                localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(list));
+            } catch (err) {
+                // ignore storage errors
+            }
+        }
+
+        function recordScore(scoreValue) {
+            const entry = { score: Math.floor(scoreValue), ts: Date.now() };
+            const list = loadLeaderboard();
+            list.push(entry);
+            list.sort((a, b) => (b.score - a.score) || (a.ts - b.ts));
+            const trimmed = list.slice(0, LEADERBOARD_LIMIT);
+            saveLeaderboard(trimmed);
+            return { list: trimmed, entry };
+        }
+
+        function renderLeaderboard(list, entry) {
+            if (!leaderboardList || !leaderboardEmpty) return;
+            leaderboardList.innerHTML = '';
+            if (!list || list.length === 0) {
+                leaderboardEmpty.style.display = 'block';
+                return;
+            }
+            leaderboardEmpty.style.display = 'none';
+            list.forEach((item, idx) => {
+                const row = document.createElement('li');
+                row.innerHTML = `<span>#${idx + 1}</span><span>${item.score} m</span>`;
+                if (entry && item.ts === entry.ts && item.score === entry.score) {
+                    row.classList.add('current');
+                }
+                leaderboardList.appendChild(row);
+            });
+        }
+
+        // 遊戲狀態機
+        let gameState = 'START'; 
+        let animationId;
+        let score = 0;
+        let gameSpeed = 6;
+        let frameCount = 0;
+
+        // 物理常數
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12; 
+        const SEGMENT_WIDTH = 40; 
+        const INTERACTION_DISTANCE = 250; 
+
+        // 測驗變數
+        let quizTimer = 0;
+        let quizMaxTime = 10; 
+        let quizInterval;
+        let currentTargetObstacle = null; 
+        let currentQuizAnswer = ""; // 用於拼寫題檢查答案
+        let currentQuizInput = [];  // 用於拼寫題存儲輸入
+
+        // 障礙物生成控制
+        let consecutiveObstaclesToSpawn = 0; 
+
+        // 顏色
+        const colors = {
+            skyTop: '#1e3c72',
+            skyBottom: '#2a5298',
+            sun: '#ffd200',
+            mountains: ['#1A1A2E', '#16213E', '#0F3460'], 
+            ground: '#1a1a1a', 
+            groundTop: '#4ca1af', 
+            player: '#eee',
+            scarf: '#ff4b4b',
+            tree: '#0a0a0a',
+            star: '#ffffff',
+            obstacleBase: '#800000', 
+            obstacleHighlight: '#ff0000' 
+        };
+
+        function drawRoundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        class BackgroundLayer {
+            constructor(speedMultiplier, color, baseHeight, jaggedness) {
+                this.speedMultiplier = speedMultiplier;
+                this.color = color;
+                this.baseHeight = baseHeight; 
+                this.jaggedness = jaggedness; 
+                this.points = [];
+                this.widthStep = 50 + Math.random() * 50;
+                this.init();
+            }
+            init() {
+                let x = 0;
+                while(x < canvas.width + 200) { this.addPoint(x); x += this.widthStep; }
+            }
+            addPoint(x) {
+                let h = canvas.height * this.baseHeight;
+                let noise = (Math.random() - 0.5) * canvas.height * this.jaggedness;
+                this.points.push({x: x, y: h + noise});
+            }
+            update(speed) {
+                if (gameState === 'QUIZ') return; 
+                for(let p of this.points) { p.x -= speed * this.speedMultiplier; }
+                if(this.points.length > 0 && this.points[0].x < -200) { this.points.shift(); }
+                let lastPoint = this.points[this.points.length - 1];
+                if(lastPoint.x < canvas.width + 200) { this.addPoint(lastPoint.x + this.widthStep); }
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                if(this.points.length === 0) return;
+                ctx.moveTo(this.points[0].x, canvas.height); 
+                ctx.lineTo(this.points[0].x, this.points[0].y); 
+                for(let i=1; i<this.points.length; i++) { ctx.lineTo(this.points[i].x, this.points[i].y); }
+                ctx.lineTo(canvas.width + 200, canvas.height); 
+                ctx.closePath(); ctx.fill();
+            }
+        }
+
+        class Decoration {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.type = type; 
+                this.scale = 0.5 + Math.random() * 0.8;
+                this.width = 20 * this.scale;
+                this.height = (type === 'tree' ? 60 : 20) * this.scale;
+            }
+            draw() {
+                ctx.fillStyle = colors.tree;
+                ctx.save(); ctx.translate(this.x, this.y);
+                if (this.type === 'tree') {
+                    ctx.beginPath(); ctx.fillStyle = '#111'; ctx.fillRect(-2, -10, 4, 10);
+                    ctx.fillStyle = colors.tree;
+                    for(let i=0; i<3; i++) {
+                        let w = this.width * (1 - i*0.2); let h = this.height * 0.4;
+                        let yOff = -10 - (i * h * 0.6);
+                        ctx.beginPath(); ctx.moveTo(-w/2, yOff); ctx.lineTo(0, yOff - h); ctx.lineTo(w/2, yOff); ctx.fill();
+                    }
+                } else {
+                    ctx.beginPath(); ctx.arc(0, -this.height/2, this.width/2, 0, Math.PI, true); ctx.fill();
+                    ctx.beginPath(); ctx.arc(-this.width/3, -this.height/3, this.width/3, 0, Math.PI, true); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.width/3, -this.height/3, this.width/3, 0, Math.PI, true); ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2;
+                this.speedX = (Math.random() - 0.5) * 0.5; this.speedY = 0.2 + Math.random() * 0.5;
+                this.opacity = Math.random() * 0.5;
+            }
+            update() {
+                if (gameState === 'QUIZ') return;
+                this.y += this.speedY; this.x += this.speedX - (gameSpeed * 0.05); 
+                if(this.y > canvas.height || this.x < 0) {
+                    this.reset(); this.y = -10; this.x = Math.random() * canvas.width + 100; 
+                }
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        let player = {
+            x: 100, y: 0, width: 30, height: 30, vy: 0, grounded: false, rotation: 0, jumpHeld: false, scarf: []
+        };
+        let terrainPoints = [];
+        let decorations = [];
+        let obstacles = [];
+        let backgroundLayers = [];
+        let particles = [];
+        let stars = [];
+
+        function initGame() {
+            resize();
+            createStars();
+            backgroundLayers = [
+                new BackgroundLayer(0.1, colors.mountains[0], 0.6, 0.2), 
+                new BackgroundLayer(0.25, colors.mountains[1], 0.7, 0.15), 
+                new BackgroundLayer(0.5, colors.mountains[2], 0.85, 0.1) 
+            ];
+            particles = [];
+            for(let i=0; i<30; i++) particles.push(new Particle());
+            generateInitialTerrain();
+        }
+
+        function createStars() {
+            stars = [];
+            for(let i=0; i<80; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height * 0.7,
+                    size: Math.random() * 1.5, opacity: Math.random()
+                });
+            }
+        }
+
+        function generateInitialTerrain() {
+            terrainPoints = []; decorations = []; obstacles = [];
+            let y = canvas.height * 0.75;
+            for(let x = 0; x < canvas.width + 200; x += SEGMENT_WIDTH) {
+                terrainPoints.push({x: x, y: y});
+            }
+            consecutiveObstaclesToSpawn = 0;
+        }
+
+        function update() {
+            if (gameState === 'QUIZ') return; 
+
+            score += gameSpeed * 0.05;
+            gameSpeed = Math.min(15, 6 + score * 0.001); 
+
+            backgroundLayers.forEach(layer => layer.update(gameSpeed));
+
+            stars.forEach(star => {
+                star.x -= 0.05; if(star.x < 0) star.x = canvas.width;
+            });
+
+            particles.forEach(p => p.update());
+
+            updateTerrain();
+            updatePlayer();
+            updateObstacles();
+
+            decorations = decorations.filter(d => d.x > -100);
+            for(let d of decorations) d.x -= gameSpeed;
+        }
+
+        function updateTerrain() {
+            for(let p of terrainPoints) { p.x -= gameSpeed; }
+            if(terrainPoints[0].x < -SEGMENT_WIDTH) { terrainPoints.shift(); }
+
+            let lastPoint = terrainPoints[terrainPoints.length - 1];
+            if(lastPoint.x < canvas.width + SEGMENT_WIDTH) {
+                let newX = lastPoint.x + SEGMENT_WIDTH;
+                let baseHeight = canvas.height * 0.75;
+                let wave1 = Math.sin(score * 0.02) * 80; 
+                let wave2 = Math.sin(score * 0.1) * 20;
+                let noise = (Math.random() - 0.5) * 10;
+                let targetY = baseHeight + wave1 + wave2 + noise;
+                let prevY = lastPoint.y;
+                let maxSlope = 25; 
+                targetY = Math.max(prevY - maxSlope, Math.min(prevY + maxSlope, targetY));
+                targetY = Math.max(canvas.height * 0.4, Math.min(canvas.height * 0.95, targetY));
+
+                terrainPoints.push({x: newX, y: targetY});
+
+                let lastObs = obstacles[obstacles.length-1];
+                let distToLast = lastObs ? (newX - lastObs.x) : 9999;
+                
+                let shouldSpawn = false;
+                if (consecutiveObstaclesToSpawn > 0) {
+                    if (distToLast > 160) {
+                        shouldSpawn = true;
+                        consecutiveObstaclesToSpawn--;
+                    }
+                } 
+                else {
+                    let obstacleChance = Math.min(0.2, 0.08 + score * 0.0001);
+                    if(score > 50 && Math.random() < obstacleChance && distToLast > 600) {
+                        shouldSpawn = true;
+                        if (Math.random() < 0.35) {
+                            consecutiveObstaclesToSpawn = Math.random() < 0.5 ? 1 : 2; 
+                        }
+                    }
+                }
+
+                if(shouldSpawn) {
+                    obstacles.push({
+                        x: newX,
+                        y: targetY, 
+                        width: 25,
+                        height: 35,
+                        angle: (Math.random() - 0.5) * 0.5,
+                        quizTaken: false,
+                        collisionDisabled: false
+                    });
+                } else if (distToLast > 50 && Math.random() < 0.3) {
+                    let type = Math.random() > 0.3 ? 'tree' : 'bush';
+                    decorations.push(new Decoration(newX, targetY, type));
+                }
+            }
+        }
+
+        function updatePlayer() {
+            player.vy += GRAVITY;
+            player.y += player.vy;
+
+            let terrainH = getTerrainHeightAt(player.x);
+            let slope = getTerrainSlopeAt(player.x);
+
+            if(player.y >= terrainH - 5) {
+                if(player.vy > 0) {
+                    player.y = terrainH;
+                    player.vy = 0;
+                    player.grounded = true;
+                    player.rotation = player.rotation * 0.8 + slope * 0.2;
+                }
+            } else {
+                player.grounded = false;
+                player.rotation = player.rotation * 0.95 + (player.vy * 0.05);
+            }
+
+            if(gameState === 'PLAYING' && player.jumpHeld && player.vy < 0) player.vy -= 0.45;
+
+            player.scarf.unshift({x: player.x, y: player.y - 15});
+            if(player.scarf.length > 25) player.scarf.pop();
+            for(let i=0; i<player.scarf.length; i++) {
+                player.scarf[i].x -= gameSpeed * 0.9;
+                player.scarf[i].y += Math.sin(frameCount * 0.2 + i*0.5) * 2;
+            }
+        }
+
+        function updateObstacles() {
+            for(let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.x -= gameSpeed;
+
+                if (!obs.collisionDisabled) { 
+                    let dx = player.x - obs.x;
+                    let dy = (player.y - 15) - (obs.y - obs.height/2);
+                    if(Math.hypot(dx, dy) < 30) {
+                        gameOver("你撞上了岩石!");
+                    }
+                }
+
+                if(obs.x < -50) obstacles.splice(i, 1);
+            }
+        }
+
+        // --- 測驗系統核心邏輯 ---
+
+        function triggerQuiz(obstacle) {
+            gameState = 'QUIZ';
+            currentTargetObstacle = obstacle;
+            obstacle.quizTaken = true;
+            startClockSound();
+            
+            // 隨機選一個單字
+            const qIndex = Math.floor(Math.random() * vocabularyData.length);
+            const qData = vocabularyData[qIndex];
+            
+            // 決定題型 (0:選擇題, 1:拼寫題, 2:重組題)
+            // 如果單字包含空白(例如 phrases), 可以是重組題
+            // 拼寫題適用於所有單字
+            // 選擇題適用於所有單字
+            
+            let quizType = Math.floor(Math.random() * 3); // 0, 1, 2
+            
+            // 如果選到重組題(2)，但單字沒有空格，則降級為拼寫題(1)
+            if (quizType === 2 && !qData.en.includes(' ')) {
+                quizType = 1;
+            }
+
+            // 設定時間
+            if (quizType === 0) {
+                quizMaxTime = 10; // 選擇題 10秒
+            } else {
+                quizMaxTime = 20; // 拼寫與重組 20秒
+            }
+
+            // 渲染對應介面
+            if (quizType === 0) {
+                renderMultipleChoice(qData);
+            } else if (quizType === 1) {
+                renderSpelling(qData, false); // false = letter mode
+            } else {
+                renderSpelling(qData, true);  // true = word/phrase mode
+            }
+            
+            // 開始計時
+            quizTimer = quizMaxTime;
+            updateTimerBar();
+            
+            if (quizInterval) clearInterval(quizInterval);
+            quizInterval = setInterval(() => {
+                quizTimer -= 0.05; 
+                updateTimerBar();
+                if (quizTimer <= 0) {
+                    playSfx(sfxWrong);
+                    endQuiz(false); 
+                }
+            }, 50);
+            
+            quizPanel.style.display = 'block';
+        }
+
+        // 題型 1: 選擇題
+        function renderMultipleChoice(qData) {
+            quizInstruction.textContent = "選擇正確的中文意思";
+            quizQuestionText.textContent = qData.en;
+            
+            // 隱藏拼寫區，顯示選擇區
+            quizOptionsMc.classList.remove('hidden');
+            quizOrderingArea.classList.add('hidden');
+            quizOptionsMc.innerHTML = '';
+
+            // 產生選項
+            // 1. 正確答案
+            let options = [{ text: qData.zh, isCorrect: true }];
+            
+            // 2. 隨機錯誤答案 (取2個)
+            let wrongPool = vocabularyData.filter(d => d.zh !== qData.zh);
+            // 洗牌 pool
+            wrongPool.sort(() => Math.random() - 0.5);
+            options.push({ text: wrongPool[0].zh, isCorrect: false });
+            options.push({ text: wrongPool[1].zh, isCorrect: false });
+            
+            // 3. 洗牌選項
+            options.sort(() => Math.random() - 0.5);
+
+            options.forEach((opt, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'quiz-option-btn';
+                btn.textContent = (index + 1) + ". " + opt.text;
+                btn.onclick = (e) => {
+                    e.stopPropagation(); 
+                    checkMcAnswer(opt.isCorrect, btn, options);
+                };
+                quizOptionsMc.appendChild(btn);
+            });
+        }
+
+        function checkMcAnswer(isCorrect, btnElement, options) {
+             clearInterval(quizInterval); 
+             if (isCorrect) {
+                 btnElement.classList.add('correct');
+                 setTimeout(() => endQuiz(true), 500);
+             } else {
+                 btnElement.classList.add('wrong');
+                 playSfx(sfxWrong);
+                 // 顯示正確答案
+                 // 簡單遍歷 DOM 找正確的有點麻煩，直接把所有選項都標出來
+                 Array.from(quizOptionsMc.children).forEach(child => {
+                     let text = child.textContent.split(". ")[1];
+                     if (options.find(o => o.text === text && o.isCorrect)) {
+                         child.classList.add('correct');
+                     }
+                 });
+                 setTimeout(() => endQuiz(false), 1000);
+             }
+        }
+
+        // 題型 2 & 3: 拼寫與重組 (isPhraseMode = true 為單字重組, false 為字母拼寫)
+        function renderSpelling(qData, isPhraseMode) {
+            quizInstruction.textContent = isPhraseMode ? "點擊單字重組句子" : "點擊字母拼寫單字";
+            quizQuestionText.textContent = qData.zh; // 題目是中文
+            currentQuizAnswer = qData.en;
+            currentQuizInput = [];
+
+            // 切換顯示區域
+            quizOptionsMc.classList.add('hidden');
+            quizOrderingArea.classList.remove('hidden');
+            
+            quizAnswerZone.innerHTML = ''; // 清空答案區
+            quizPiecesZone.innerHTML = ''; // 清空碎片區
+
+            // 準備碎片
+            let pieces = [];
+            if (isPhraseMode) {
+                // 以空格分割
+                pieces = qData.en.split(' ');
+            } else {
+                // 以字母分割 (移除空格)
+                // 如果單字中有空格但它是拼寫模式(不應該發生，但防呆)，我們把空格拿掉
+                pieces = qData.en.replace(/\s+/g, '').split('');
+                currentQuizAnswer = qData.en.replace(/\s+/g, '');
+            }
+
+            // 加上索引以區分相同字母/單字
+            let pieceObjs = pieces.map((text, idx) => ({ id: idx, text: text }));
+            
+            // 洗牌
+            pieceObjs.sort(() => Math.random() - 0.5);
+
+            // 渲染碎片
+            pieceObjs.forEach(p => {
+                let chip = document.createElement('div');
+                chip.className = 'quiz-piece';
+                chip.textContent = p.text;
+                chip.id = 'piece-' + p.id;
+                chip.onclick = (e) => {
+                    e.stopPropagation();
+                    addToAnswer(p, chip, isPhraseMode);
+                };
+                quizPiecesZone.appendChild(chip);
+            });
+        }
+
+        function addToAnswer(pieceObj, chipElement, isPhraseMode) {
+            // 加入輸入
+            currentQuizInput.push(pieceObj);
+            chipElement.classList.add('used'); // 標記為已使用
+            if (!isPhraseMode) playSfx(sfxSpell);
+
+            // 在答案區顯示
+            let ansChip = document.createElement('div');
+            ansChip.className = 'quiz-piece';
+            ansChip.textContent = pieceObj.text;
+            ansChip.onclick = (e) => {
+                e.stopPropagation();
+                removeFromAnswer(pieceObj, chipElement, ansChip);
+            };
+            quizAnswerZone.appendChild(ansChip);
+
+            checkOrderingAnswer(isPhraseMode);
+        }
+
+        function removeFromAnswer(pieceObj, originalChip, ansChip) {
+            // 從輸入移除
+            let idx = currentQuizInput.findIndex(p => p.id === pieceObj.id);
+            if (idx > -1) {
+                currentQuizInput.splice(idx, 1);
+            }
+            // 恢復下方碎片狀態
+            originalChip.classList.remove('used');
+            // 移除自己
+            ansChip.remove();
+        }
+
+        function checkOrderingAnswer(isPhraseMode) {
+            // 組合目前輸入
+            let inputString = "";
+            if (isPhraseMode) {
+                inputString = currentQuizInput.map(p => p.text).join(' ');
+            } else {
+                inputString = currentQuizInput.map(p => p.text).join('');
+            }
+
+            // 比對長度是否一致，一致才檢查對錯
+            if (inputString.length === currentQuizAnswer.length) {
+                clearInterval(quizInterval);
+                if (inputString === currentQuizAnswer) {
+                    quizAnswerZone.style.borderColor = '#2ecc71';
+                    quizAnswerZone.style.color = '#2ecc71';
+                    setTimeout(() => endQuiz(true), 500);
+                } else {
+                    quizAnswerZone.style.borderColor = '#e74c3c';
+                    quizAnswerZone.style.color = '#e74c3c';
+                    playSfx(sfxWrong);
+                    setTimeout(() => endQuiz(false), 1000);
+                }
+            }
+        }
+
+        function updateTimerBar() {
+            const pct = (quizTimer / quizMaxTime) * 100;
+            quizTimerFill.style.width = pct + '%';
+            if (pct < 30) quizTimerFill.style.background = '#ff0000';
+            else if (pct < 60) quizTimerFill.style.background = '#f0ff00';
+            else quizTimerFill.style.background = '#00ff88';
+        }
+
+        function endQuiz(isSuccess) {
+            if (quizInterval) {
+                clearInterval(quizInterval);
+                quizInterval = null;
+            }
+            stopClockSound();
+            quizPanel.style.display = 'none';
+            // 重置樣式
+            quizAnswerZone.style.borderColor = '#fff';
+            quizAnswerZone.style.color = '#ffd200';
+
+            if (isSuccess) {
+                gameState = 'PLAYING';
+                
+                // 群組無效化
+                obstacles.forEach(obs => {
+                    if (obs.x > player.x && obs.x < player.x + 800) {
+                        obs.collisionDisabled = true;
+                    }
+                });
+
+                player.vy = JUMP_FORCE * 1.2; 
+                player.grounded = false;
+                playSfx(sfxJump);
+                score += 100; 
+                
+                createSpeedLines();
+            } else {
+                gameState = 'PLAYING'; 
+            }
+        }
+
+        function createSpeedLines() {
+            for(let i=0; i<10; i++) {
+                particles.push({
+                    x: player.x,
+                    y: player.y,
+                    size: Math.random() * 5,
+                    speedX: -10 - Math.random() * 10,
+                    speedY: (Math.random()-0.5) * 5,
+                    opacity: 1,
+                    update: function() { this.x += this.speedX; this.y += this.speedY; this.opacity -= 0.1; },
+                    draw: function() { 
+                        ctx.fillStyle = `rgba(255,255,255,${this.opacity})`; 
+                        ctx.fillRect(this.x, this.y, 20, 2); 
+                    }
+                });
+            }
+        }
+
+        function getTerrainHeightAt(x) {
+            for(let i=0; i<terrainPoints.length - 1; i++) {
+                let p1 = terrainPoints[i];
+                let p2 = terrainPoints[i+1];
+                if(x >= p1.x && x <= p2.x) {
+                    let t = (x - p1.x) / (p2.x - p1.x);
+                    return p1.y + (p2.y - p1.y) * t;
+                }
+            }
+            return canvas.height;
+        }
+
+        function getTerrainSlopeAt(x) {
+            for(let i=0; i<terrainPoints.length - 1; i++) {
+                let p1 = terrainPoints[i];
+                let p2 = terrainPoints[i+1];
+                if(x >= p1.x && x <= p2.x) {
+                    return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                }
+            }
+            return 0;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            g.addColorStop(0, colors.skyTop);
+            g.addColorStop(1, colors.skyBottom);
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = colors.star;
+            stars.forEach(s => {
+                ctx.globalAlpha = Math.abs(Math.sin(frameCount * 0.05 + s.x)) * s.opacity; 
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+
+            ctx.fillStyle = colors.sun;
+            ctx.shadowBlur = 40; ctx.shadowColor = colors.sun;
+            ctx.beginPath(); ctx.arc(canvas.width * 0.8, canvas.height * 0.2, 50, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            backgroundLayers.forEach(layer => layer.draw());
+            decorations.forEach(d => d.draw());
+
+            ctx.fillStyle = colors.ground;
+            ctx.beginPath();
+            if(terrainPoints.length > 0) {
+                ctx.moveTo(terrainPoints[0].x, terrainPoints[0].y);
+                for(let i=1; i<terrainPoints.length; i++) {
+                    let p0 = terrainPoints[i-1]; let p1 = terrainPoints[i];
+                    let mx = (p0.x + p1.x)/2; let my = (p0.y + p1.y)/2;
+                    ctx.quadraticCurveTo(p0.x, p0.y, mx, my);
+                }
+                ctx.lineTo(canvas.width+SEGMENT_WIDTH, canvas.height); 
+                ctx.lineTo(-SEGMENT_WIDTH, canvas.height); 
+                ctx.fill();
+                ctx.strokeStyle = colors.groundTop; ctx.lineWidth = 4; ctx.stroke();
+            }
+
+            obstacles.forEach(obs => {
+                ctx.save(); ctx.translate(obs.x, obs.y); ctx.rotate(obs.angle); 
+                ctx.beginPath();
+                ctx.moveTo(-15, 0); ctx.lineTo(-10, -30); ctx.lineTo(-5, -15); 
+                ctx.lineTo(0, -40); ctx.lineTo(5, -15); ctx.lineTo(12, -25); ctx.lineTo(15, 0); ctx.closePath();
+                
+                // 如果碰撞無效 (已通過)，顏色變暗或變透明
+                if (obs.collisionDisabled) {
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = '#555'; // 已通過變成灰色
+                    ctx.strokeStyle = '#777';
+                } else {
+                    ctx.fillStyle = colors.obstacleBase; 
+                    ctx.strokeStyle = colors.obstacleHighlight; 
+                }
+                
+                ctx.fill();
+                ctx.lineWidth = 2; 
+                ctx.stroke();
+                
+                // 視覺提示
+                let dist = obs.x - player.x;
+                if (!obs.quizTaken && !obs.collisionDisabled && dist > 0 && dist < INTERACTION_DISTANCE) {
+                    ctx.shadowBlur = 20; ctx.shadowColor = 'yellow'; ctx.stroke(); ctx.shadowBlur = 0;
+                    ctx.save();
+                    ctx.rotate(-obs.angle); 
+                    ctx.fillStyle = "yellow";
+                    ctx.font = "bold 16px 'Noto Sans TC'";
+                    ctx.textAlign = "center";
+                    ctx.fillText("JUMP!", 0, -50);
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            });
+
+            drawPlayer();
+            particles.forEach(p => { if(p.draw) p.draw(); else {
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            }});
+
+            if (gameState === 'QUIZ') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function drawPlayer() {
+            ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.rotation);
+            ctx.fillStyle = '#333'; drawRoundRect(ctx, -15, -5, 30, 8, 4);
+            ctx.fillStyle = colors.player;
+            ctx.beginPath(); ctx.arc(0, -20, 8, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = colors.player; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(-5, -10); ctx.lineTo(0, -5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-5, -15); ctx.lineTo(12, -18); ctx.stroke();
+            ctx.restore();
+
+            ctx.strokeStyle = colors.scarf; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.beginPath();
+            if(player.scarf.length > 0) {
+                ctx.moveTo(player.scarf[0].x, player.scarf[0].y);
+                for(let i=1; i<player.scarf.length; i++) { ctx.lineTo(player.scarf[i].x, player.scarf[i].y); }
+                ctx.stroke();
+            }
+        }
+
+        function gameLoop() {
+            if(gameState === 'GAMEOVER') return;
+            frameCount++;
+            update();
+            draw();
+            distanceDisplay.innerText = Math.floor(score);
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if(gameState === 'START') { initGame(); draw(); }
+        }
+        window.addEventListener('resize', resize);
+
+        function startGame() {
+            gameState = 'PLAYING';
+            score = 0; gameSpeed = 6;
+            obstacles = []; player.scarf = []; player.vy = 0; player.x = 100;
+            quizPanel.style.display = 'none';
+            stopClockSound();
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            scoreBoard.classList.remove('hidden');
+            startBgm();
+            initGame();
+            gameLoop();
+        }
+
+        function gameOver(reason) {
+            gameState = 'GAMEOVER';
+            playSfx(sfxDead);
+            stopClockSound();
+            cancelAnimationFrame(animationId);
+            setTimeout(() => {
+                scoreBoard.classList.add('hidden');
+                gameOverScreen.classList.remove('hidden');
+                gameOverTitle.innerText = "挑戰失敗";
+                gameOverMsg.innerHTML = `${reason || '撞上障礙物'}<br>滑行距離: <span style="color:#f6d365;font-size:24px">${Math.floor(score)}</span> m`;
+                finalScoreDisplay.innerText = Math.floor(score);
+                const result = recordScore(score);
+                renderLeaderboard(result.list, result.entry);
+                gameOverScreen.style.display = 'flex';
+                quizPanel.style.display = 'none'; 
+            }, 300);
+        }
+
+        function jumpStart(e) {
+            if(gameState === 'QUIZ') return; 
+            if(gameState === 'START' || gameState === 'GAMEOVER') return;
+
+            let nearbyObs = null;
+            for(let obs of obstacles) {
+                let dist = obs.x - player.x;
+                if (dist > 0 && dist < INTERACTION_DISTANCE && !obs.quizTaken && !obs.collisionDisabled) {
+                    nearbyObs = obs;
+                    break;
+                }
+            }
+
+            if (nearbyObs) {
+                triggerQuiz(nearbyObs);
+            } else {
+                if(player.grounded) {
+                    player.vy = JUMP_FORCE; 
+                    player.grounded = false; 
+                    player.jumpHeld = true;
+                    playSfx(sfxJump);
+                }
+            }
+        }
+        function jumpEnd() { player.jumpHeld = false; }
+        
+        window.addEventListener('mousedown', jumpStart);
+        window.addEventListener('touchstart', (e)=>{ if(e.target.tagName !== 'BUTTON') { e.preventDefault(); jumpStart(e); }}, {passive:false});
+        window.addEventListener('mouseup', jumpEnd);
+        window.addEventListener('touchend', jumpEnd);
+        window.addEventListener('keydown', (e) => {
+            if (gameState === 'QUIZ') return;
+            if(e.code === 'Space' || e.code === 'ArrowUp') {
+                if(gameState !== 'PLAYING') startGame(); else jumpStart();
+            }
+        });
+        window.addEventListener('keyup', (e) => { if(e.code === 'Space' || e.code === 'ArrowUp') jumpEnd(); });
+
+        startBtn.onclick = (e) => { e.stopPropagation(); startGame(); };
+        restartBtn.onclick = (e) => { e.stopPropagation(); startGame(); };
+
+        window.onload = function() { initGame(); draw(); };
+
+    </script>
+</body>
+</html>
