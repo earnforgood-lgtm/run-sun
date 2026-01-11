@@ -740,6 +740,7 @@
         let currentQuizAnswer = ""; // 用於拼寫題檢查答案
         let currentQuizInput = [];  // 用於拼寫題存儲輸入
         let currentQuizCorrectText = "";
+        let currentQuizSpeakText = "";
         let pendingQuizEnd = false;
         let remainingQuestionIndexes = [];
         let currentQuestionIndex = null;
@@ -1053,6 +1054,7 @@
             const qIndex = remainingQuestionIndexes.splice(pickIndex, 1)[0];
             const qData = vocabularyData[qIndex];
             currentQuestionIndex = qIndex;
+            currentQuizSpeakText = qData.en;
             
             // 決定題型 (0:選擇題, 1:拼寫題, 2:重組題)
             // 如果單字包含空白(例如 phrases), 可以是重組題
@@ -1144,7 +1146,7 @@
              clearInterval(quizInterval); 
              if (isCorrect) {
                  btnElement.classList.add('correct');
-                 setTimeout(() => endQuiz(true), 500);
+                 speakSuccessThenContinue();
              } else {
                  btnElement.classList.add('wrong');
                  playSfx(sfxWrong);
@@ -1246,7 +1248,7 @@
                 if (inputString === currentQuizAnswer) {
                     quizAnswerZone.style.borderColor = '#2ecc71';
                     quizAnswerZone.style.color = '#2ecc71';
-                    setTimeout(() => endQuiz(true), 500);
+                    speakSuccessThenContinue();
                 } else {
                     quizAnswerZone.style.borderColor = '#e74c3c';
                     quizAnswerZone.style.color = '#e74c3c';
@@ -1280,6 +1282,34 @@
             pendingQuizEnd = true;
             stopClockSound();
             if (quizConfirmBtn) quizConfirmBtn.style.display = 'inline-block';
+        }
+
+        function speakSuccessThenContinue() {
+            stopClockSound();
+            if (quizConfirmBtn) quizConfirmBtn.style.display = 'none';
+            if (!('speechSynthesis' in window)) {
+                endQuiz(true);
+                return;
+            }
+            const text = currentQuizSpeakText || currentQuizAnswer || '';
+            if (!text) {
+                endQuiz(true);
+                return;
+            }
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = 0.9;
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                endQuiz(true);
+            };
+            utter.onend = finish;
+            utter.onerror = finish;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utter);
+            setTimeout(finish, 3000 + text.length * 120);
         }
 
         function updateTimerBar() {
