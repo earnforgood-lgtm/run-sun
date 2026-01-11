@@ -881,6 +881,7 @@
         let currentQuizCorrectText = "";
         let currentQuizSpeakText = "";
         let pendingQuizEnd = false;
+        let quizLocked = false;
         let remainingQuestionIndexes = [];
         let currentQuestionIndex = null;
 
@@ -1369,6 +1370,7 @@
             obstacle.quizTaken = true;
             startClockSound();
             pendingQuizEnd = false;
+            quizLocked = false;
             if (quizConfirmBtn) quizConfirmBtn.style.display = 'none';
             
             // 隨機選一個未使用的題目，全部用完才重置
@@ -1471,6 +1473,7 @@
         }
 
         function checkMcAnswer(isCorrect, btnElement, options) {
+             if (quizLocked) return;
              clearInterval(quizInterval); 
              if (isCorrect) {
                  btnElement.classList.add('correct');
@@ -1531,6 +1534,7 @@
         }
 
         function addToAnswer(pieceObj, chipElement, isPhraseMode) {
+            if (quizLocked) return;
             // 加入輸入
             currentQuizInput.push(pieceObj);
             chipElement.classList.add('used'); // 標記為已使用
@@ -1608,6 +1612,7 @@
 
         function showConfirmButton() {
             pendingQuizEnd = true;
+            quizLocked = true;
             stopClockSound();
             if (quizConfirmBtn) quizConfirmBtn.style.display = 'inline-block';
         }
@@ -1691,6 +1696,7 @@
             }
             currentQuestionIndex = null;
             pendingQuizEnd = false;
+            quizLocked = false;
             if (quizConfirmBtn) quizConfirmBtn.style.display = 'none';
             stopClockSound();
             quizPanel.style.display = 'none';
