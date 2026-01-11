@@ -1,4 +1,4 @@
-const CACHE_NAME = 'run-sun-v1';
+const CACHE_NAME = 'run-sun-v2';
 const PRECACHE_URLS = [
   './',
   './index.html',
