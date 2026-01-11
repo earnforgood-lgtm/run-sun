@@ -53,6 +53,26 @@
             opacity: 1;
         }
 
+        #update-toast {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 220;
+        }
+
+        #update-toast.show {
+            opacity: 1;
+        }
+
         #ui-layer {
             position: absolute;
             top: 0;
@@ -417,6 +437,12 @@
             #rotate-notice {
                 font-size: 16px;
             }
+
+            #update-toast {
+                font-size: 12px;
+                padding: 8px 12px;
+                bottom: 12px;
+            }
         }
 
         @media (max-height: 520px) {
@@ -443,6 +469,7 @@
 
     <canvas id="gameCanvas"></canvas>
     <div id="rotate-notice">請將手機橫向旋轉以獲得最佳遊戲體驗</div>
+    <div id="update-toast">更新完成</div>
 
     <div id="ui-layer">
         <div id="score-board" class="hidden">
@@ -554,6 +581,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const rotateNotice = document.getElementById('rotate-notice');
+        const updateToast = document.getElementById('update-toast');
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreBoard = document.getElementById('score-board');
@@ -657,6 +685,13 @@
             if (!rotateNotice) return;
             const isPortrait = window.matchMedia('(orientation: portrait)').matches;
             rotateNotice.classList.toggle('show', isPortrait);
+        }
+
+        function showUpdateToast(message) {
+            if (!updateToast) return;
+            updateToast.textContent = message;
+            updateToast.classList.add('show');
+            setTimeout(() => updateToast.classList.remove('show'), 2000);
         }
 
         async function lockLandscape() {
@@ -1614,6 +1649,7 @@
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                     if (swReloading) return;
                     swReloading = true;
+                    showUpdateToast('更新完成，重新整理中...');
                     window.location.reload();
                 });
             });
@@ -1629,8 +1665,12 @@
         updateBtn.onclick = (e) => { 
             e.stopPropagation(); 
             if (swRegistration) {
-                swRegistration.update().catch(() => {});
+                showUpdateToast('檢查更新中...');
+                swRegistration.update()
+                    .then(() => showUpdateToast('已是最新版本'))
+                    .catch(() => showUpdateToast('更新失敗，請重試'));
             } else {
+                showUpdateToast('正在重新整理...');
                 window.location.reload();
             }
         };
