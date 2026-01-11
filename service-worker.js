@@ -14,11 +14,12 @@ const PRECACHE_URLS = [
   './fault.mp3',
   './jump.mp3',
   './jumpp.mp3',
-  './mus-1.mp3',
-  './mus-2.mp3',
-  './mus-3.mp3',
-  './mus-4.mp3',
-  './mus-5.mp3'
+  './l1.mp3',
+  './l2.mp3',
+  './l3.mp3',
+  './l4.mp3',
+  './l5.mp3',
+  './l6.mp3'
 ];
 
 self.addEventListener('install', (event) => {
