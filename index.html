@@ -171,6 +171,27 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
+        #startScreen {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            max-width: 720px;
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            font-size: 12px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 4px 8px;
+            border-radius: 999px;
+        }
+
         #leaderboard {
             margin-top: 20px;
             width: 100%;
@@ -214,7 +235,7 @@
 
         h1 {
             margin: 0 0 10px 0;
-            font-size: 48px;
+            font-size: 40px;
             letter-spacing: 2px;
             background: linear-gradient(to bottom, #f6d365, #fda085);
             -webkit-background-clip: text;
@@ -222,17 +243,17 @@
         }
 
         p {
-            font-size: 18px;
+            font-size: 15px;
             color: #ddd;
-            margin-bottom: 30px;
+            margin-bottom: 16px;
             line-height: 1.6;
         }
 
         button.action-btn {
             background: linear-gradient(45deg, #ff9a9e, #fad0c4);
             border: none;
-            padding: 15px 40px;
-            font-size: 20px;
+            padding: 12px 32px;
+            font-size: 18px;
             color: #333;
             border-radius: 50px;
             cursor: pointer;
@@ -245,12 +266,24 @@
         button.action-btn.secondary {
             background: linear-gradient(45deg, #cfd9df, #e2ebf0);
             margin-top: 10px;
-            font-size: 16px;
-            padding: 10px 26px;
+            font-size: 14px;
+            padding: 8px 22px;
+        }
+
+        .start-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .start-actions .action-btn.secondary {
+            margin-top: 0;
         }
 
         .ai-panel {
-            margin-top: 16px;
+            margin-top: 4px;
             width: 100%;
             max-width: 520px;
             text-align: left;
@@ -262,7 +295,7 @@
 
         .ai-panel h3 {
             margin: 0 0 8px 0;
-            font-size: 18px;
+            font-size: 16px;
             color: #f6d365;
         }
 
@@ -283,7 +316,7 @@
             background: rgba(255,255,255,0.1);
             color: #fff;
             font-family: 'Noto Sans TC', sans-serif;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .ai-panel textarea {
@@ -485,7 +518,7 @@
 
             p {
                 font-size: 15px;
-                margin-bottom: 18px;
+                margin-bottom: 10px;
             }
 
             button.action-btn {
@@ -496,6 +529,10 @@
             button.action-btn.secondary {
                 font-size: 14px;
                 padding: 8px 20px;
+            }
+
+            .start-actions {
+                flex-direction: column;
             }
 
             .ai-panel {
@@ -625,10 +662,13 @@
         </div>
 
         <div id="startScreen" class="screen">
+            <div class="version-badge">v1.1</div>
             <h1>日落單字跑酷</h1>
             <p><strong>遊戲說明</strong><br>當出現 "JUMP" 提示時，按下跳躍鍵進行答題。<br>包含選擇題、拼字與重組句子！</p>
-            <button id="startBtn" class="action-btn">開始挑戰</button>
-            <button id="updateBtn" class="action-btn secondary">更新遊戲</button>
+            <div class="start-actions">
+                <button id="startBtn" class="action-btn">開始挑戰</button>
+                <button id="updateBtn" class="action-btn secondary">更新遊戲</button>
+            </div>
             <div class="ai-panel">
                 <h3>AI 題庫生成</h3>
                 <div class="ai-row">
@@ -822,11 +862,11 @@
         }
 
         function getBgmIndexForScore(scoreValue) {
-            if (scoreValue >= 5000) return 5;
-            if (scoreValue >= 4000) return 4;
-            if (scoreValue >= 3000) return 3;
-            if (scoreValue >= 2000) return 2;
-            if (scoreValue >= 1000) return 1;
+            if (scoreValue >= 7500) return 5;
+            if (scoreValue >= 6000) return 4;
+            if (scoreValue >= 4500) return 3;
+            if (scoreValue >= 3000) return 2;
+            if (scoreValue >= 1500) return 1;
             return 0;
         }
 
@@ -959,7 +999,7 @@
 
         // 物理常數
         const GRAVITY = 0.6;
-        const JUMP_FORCE = -12; 
+        const JUMP_FORCE = -10; 
         const SEGMENT_WIDTH = 40; 
         const INTERACTION_DISTANCE = 250; 
 
