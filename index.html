@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日落單字跑酷 Sunset Vocabulary Run</title>
+    <meta name="theme-color" content="#1e3c72">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+    <title>日落跑酷Sunset Run</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Roboto+Mono:wght@500&display=swap');
 
@@ -24,6 +30,27 @@
             display: block;
             width: 100%;
             height: 100%;
+        }
+
+        #rotate-notice {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.75);
+            color: #f6d365;
+            font-size: 20px;
+            text-align: center;
+            padding: 20px;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        #rotate-notice.show {
+            opacity: 1;
         }
 
         #ui-layer {
@@ -51,6 +78,10 @@
             font-size: 24px;
             font-weight: bold;
             text-align: left;
+        }
+
+        #distanceDisplay {
+            font-size: 32px;
         }
 
         /* 通用屏幕樣式 */
@@ -134,6 +165,13 @@
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4);
             transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button.action-btn.secondary {
+            background: linear-gradient(45deg, #cfd9df, #e2ebf0);
+            margin-top: 10px;
+            font-size: 16px;
+            padding: 10px 26px;
         }
 
         button.action-btn:hover {
@@ -290,21 +328,127 @@
         .hidden {
             display: none !important;
         }
+
+        @media (max-width: 900px) {
+            #score-board {
+                top: 12px;
+                left: 12px;
+                font-size: 18px;
+            }
+
+            #distanceDisplay {
+                font-size: 24px;
+            }
+
+            .screen {
+                padding: 22px;
+                border-radius: 16px;
+            }
+
+            h1 {
+                font-size: 34px;
+                letter-spacing: 1px;
+            }
+
+            p {
+                font-size: 15px;
+                margin-bottom: 18px;
+            }
+
+            button.action-btn {
+                padding: 12px 26px;
+                font-size: 18px;
+            }
+
+            button.action-btn.secondary {
+                font-size: 14px;
+                padding: 8px 20px;
+            }
+
+            #leaderboard {
+                margin-top: 16px;
+                max-width: 320px;
+            }
+
+            #leaderboard h2 {
+                font-size: 18px;
+            }
+
+            #leaderboard-list li {
+                font-size: 14px;
+                padding: 6px 8px;
+            }
+
+            #quiz-panel {
+                width: 92%;
+                max-width: 360px;
+                padding: 18px;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+
+            .quiz-question {
+                font-size: 24px;
+                min-height: 32px;
+            }
+
+            .quiz-option-btn {
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .quiz-answer-area {
+                min-height: 42px;
+                font-size: 20px;
+                padding: 8px;
+                gap: 6px;
+            }
+
+            .quiz-piece {
+                padding: 6px 12px;
+                font-size: 16px;
+            }
+
+            #rotate-notice {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-height: 520px) {
+            .screen {
+                padding: 18px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            #quiz-panel {
+                padding: 16px;
+                max-height: 80vh;
+            }
+
+            .quiz-question {
+                font-size: 22px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
+    <div id="rotate-notice">請將手機橫向旋轉以獲得最佳遊戲體驗</div>
 
     <div id="ui-layer">
         <div id="score-board" class="hidden">
-            <span style="font-size: 32px;" id="distanceDisplay">0</span> m
+            <span id="distanceDisplay">0</span> m
         </div>
 
         <div id="startScreen" class="screen">
             <h1>日落單字跑酷</h1>
             <p><strong>遊戲說明</strong><br>當出現 "JUMP" 提示時，按下跳躍鍵進行答題。<br>包含選擇題、拼字與重組句子！</p>
             <button id="startBtn" class="action-btn">開始挑戰</button>
+            <button id="updateBtn" class="action-btn secondary">更新遊戲</button>
         </div>
 
         <!-- 測驗介面 -->
@@ -402,6 +546,7 @@
         // --- 2. 遊戲引擎設置 ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const rotateNotice = document.getElementById('rotate-notice');
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const scoreBoard = document.getElementById('score-board');
@@ -410,6 +555,7 @@
         const leaderboardList = document.getElementById('leaderboard-list');
         const leaderboardEmpty = document.getElementById('leaderboard-empty');
         const startBtn = document.getElementById('startBtn');
+        const updateBtn = document.getElementById('updateBtn');
         const restartBtn = document.getElementById('restartBtn');
         const gameOverTitle = document.getElementById('gameOverTitle');
         const gameOverMsg = document.getElementById('gameOverMsg');
@@ -441,6 +587,7 @@
         ].map((src) => new Audio(src));
         let bgmIndex = 0;
         let bgmStarted = false;
+        let highBgmTriggered = false;
 
         function playSfx(audio) {
             if (!audio) return;
@@ -466,6 +613,25 @@
             }
         }
 
+        function playBgmIndex(nextIndex) {
+            if (!bgmTracks[nextIndex]) return;
+            bgmTracks.forEach((track) => {
+                track.pause();
+                track.currentTime = 0;
+            });
+            bgmIndex = nextIndex;
+            const p = bgmTracks[bgmIndex].play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+
+        function stopBgm() {
+            bgmStarted = false;
+            bgmTracks.forEach((track) => {
+                track.pause();
+                track.currentTime = 0;
+            });
+        }
+
         function startClockSound() {
             if (!sfxClock) return;
             sfxClock.currentTime = 0;
@@ -477,6 +643,22 @@
             if (!sfxClock) return;
             sfxClock.pause();
             sfxClock.currentTime = 0;
+        }
+
+        function updateOrientationNotice() {
+            if (!rotateNotice) return;
+            const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+            rotateNotice.classList.toggle('show', isPortrait);
+        }
+
+        async function lockLandscape() {
+            if (screen.orientation && screen.orientation.lock) {
+                try {
+                    await screen.orientation.lock('landscape');
+                } catch (err) {
+                    // ignore lock failures
+                }
+            }
         }
 
         const LEADERBOARD_KEY = 'run-sun-leaderboard';
@@ -546,8 +728,10 @@
         let quizMaxTime = 10; 
         let quizInterval;
         let currentTargetObstacle = null; 
+        let currentQuizType = 0;
         let currentQuizAnswer = ""; // 用於拼寫題檢查答案
         let currentQuizInput = [];  // 用於拼寫題存儲輸入
+        let currentQuizCorrectText = "";
 
         // 障礙物生成控制
         let consecutiveObstaclesToSpawn = 0; 
@@ -716,6 +900,11 @@
 
             score += gameSpeed * 0.05;
             gameSpeed = Math.min(15, 6 + score * 0.001); 
+            if (!highBgmTriggered && score >= 1000) {
+                highBgmTriggered = true;
+                const highIndex = Math.random() < 0.5 ? 3 : 4; // mus-4 or mus-5
+                playBgmIndex(highIndex);
+            }
 
             backgroundLayers.forEach(layer => layer.update(gameSpeed));
 
@@ -858,6 +1047,7 @@
             if (quizType === 2 && !qData.en.includes(' ')) {
                 quizType = 1;
             }
+            currentQuizType = quizType;
 
             // 設定時間
             if (quizType === 0) {
@@ -884,8 +1074,11 @@
                 quizTimer -= 0.05; 
                 updateTimerBar();
                 if (quizTimer <= 0) {
+                    clearInterval(quizInterval);
+                    quizInterval = null;
                     playSfx(sfxWrong);
-                    endQuiz(false); 
+                    showCorrectAnswer();
+                    setTimeout(() => endQuiz(false), 1000);
                 }
             }, 50);
             
@@ -896,6 +1089,7 @@
         function renderMultipleChoice(qData) {
             quizInstruction.textContent = "選擇正確的中文意思";
             quizQuestionText.textContent = qData.en;
+            currentQuizCorrectText = qData.zh;
             
             // 隱藏拼寫區，顯示選擇區
             quizOptionsMc.classList.remove('hidden');
@@ -936,14 +1130,7 @@
              } else {
                  btnElement.classList.add('wrong');
                  playSfx(sfxWrong);
-                 // 顯示正確答案
-                 // 簡單遍歷 DOM 找正確的有點麻煩，直接把所有選項都標出來
-                 Array.from(quizOptionsMc.children).forEach(child => {
-                     let text = child.textContent.split(". ")[1];
-                     if (options.find(o => o.text === text && o.isCorrect)) {
-                         child.classList.add('correct');
-                     }
-                 });
+                 showCorrectAnswer();
                  setTimeout(() => endQuiz(false), 1000);
              }
         }
@@ -973,6 +1160,7 @@
                 pieces = qData.en.replace(/\s+/g, '').split('');
                 currentQuizAnswer = qData.en.replace(/\s+/g, '');
             }
+            currentQuizCorrectText = isPhraseMode ? qData.en : currentQuizAnswer;
 
             // 加上索引以區分相同字母/單字
             let pieceObjs = pieces.map((text, idx) => ({ id: idx, text: text }));
@@ -1045,8 +1233,28 @@
                     quizAnswerZone.style.borderColor = '#e74c3c';
                     quizAnswerZone.style.color = '#e74c3c';
                     playSfx(sfxWrong);
+                    showCorrectAnswer();
                     setTimeout(() => endQuiz(false), 1000);
                 }
+            }
+        }
+
+        function showCorrectAnswer() {
+            if (!currentQuizCorrectText) return;
+            quizInstruction.textContent = `正確答案：${currentQuizCorrectText}`;
+            if (currentQuizType === 0) {
+                Array.from(quizOptionsMc.children).forEach(child => {
+                    let text = child.textContent.split(". ")[1];
+                    if (text === currentQuizCorrectText) {
+                        child.classList.add('correct');
+                    }
+                });
+            } else if (quizAnswerZone) {
+                quizAnswerZone.innerHTML = '';
+                const answerChip = document.createElement('div');
+                answerChip.className = 'quiz-piece';
+                answerChip.textContent = currentQuizCorrectText;
+                quizAnswerZone.appendChild(answerChip);
             }
         }
 
@@ -1249,19 +1457,23 @@
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            updateOrientationNotice();
             if(gameState === 'START') { initGame(); draw(); }
         }
         window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', updateOrientationNotice);
 
         function startGame() {
             gameState = 'PLAYING';
             score = 0; gameSpeed = 6;
+            highBgmTriggered = false;
             obstacles = []; player.scarf = []; player.vy = 0; player.x = 100;
             quizPanel.style.display = 'none';
             stopClockSound();
             startScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
             scoreBoard.classList.remove('hidden');
+            lockLandscape();
             startBgm();
             initGame();
             gameLoop();
@@ -1271,6 +1483,7 @@
             gameState = 'GAMEOVER';
             playSfx(sfxDead);
             stopClockSound();
+            stopBgm();
             cancelAnimationFrame(animationId);
             setTimeout(() => {
                 scoreBoard.classList.add('hidden');
@@ -1312,7 +1525,11 @@
         function jumpEnd() { player.jumpHeld = false; }
         
         window.addEventListener('mousedown', jumpStart);
-        window.addEventListener('touchstart', (e)=>{ if(e.target.tagName !== 'BUTTON') { e.preventDefault(); jumpStart(e); }}, {passive:false});
+        window.addEventListener('touchstart', (e)=>{ 
+            const target = e.target;
+            if (gameState === 'QUIZ' || (target.closest && target.closest('#quiz-panel'))) return;
+            if(target.tagName !== 'BUTTON') { e.preventDefault(); jumpStart(e); }
+        }, {passive:false});
         window.addEventListener('mouseup', jumpEnd);
         window.addEventListener('touchend', jumpEnd);
         window.addEventListener('keydown', (e) => {
@@ -1323,10 +1540,34 @@
         });
         window.addEventListener('keyup', (e) => { if(e.code === 'Space' || e.code === 'ArrowUp') jumpEnd(); });
 
+        let swRegistration = null;
+        let swReloading = false;
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then((reg) => { swRegistration = reg; })
+                    .catch(() => {});
+
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (swReloading) return;
+                    swReloading = true;
+                    window.location.reload();
+                });
+            });
+        }
+
         startBtn.onclick = (e) => { e.stopPropagation(); startGame(); };
+        updateBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            if (swRegistration) {
+                swRegistration.update().catch(() => {});
+            } else {
+                window.location.reload();
+            }
+        };
         restartBtn.onclick = (e) => { e.stopPropagation(); startGame(); };
 
-        window.onload = function() { initGame(); draw(); };
+        window.onload = function() { initGame(); draw(); updateOrientationNotice(); };
 
     </script>
 </body>
