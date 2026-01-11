@@ -325,6 +325,11 @@
             pointer-events: none;
         }
 
+        #quiz-confirm-btn {
+            margin-top: 15px;
+            display: none;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -465,6 +470,8 @@
                 <div class="quiz-answer-area" id="quiz-answer-zone"></div>
                 <div class="quiz-pieces-container" id="quiz-pieces-zone"></div>
             </div>
+
+            <button id="quiz-confirm-btn" class="action-btn secondary">確認</button>
         </div>
 
         <div id="gameOverScreen" class="screen hidden">
@@ -569,6 +576,7 @@
         const quizAnswerZone = document.getElementById('quiz-answer-zone');
         const quizPiecesZone = document.getElementById('quiz-pieces-zone');
         const quizTimerFill = document.getElementById('quiz-timer-fill');
+        const quizConfirmBtn = document.getElementById('quiz-confirm-btn');
 
         // 音效與背景音樂
         const sfxJump = new Audio('jumpp.mp3');
@@ -732,6 +740,9 @@
         let currentQuizAnswer = ""; // 用於拼寫題檢查答案
         let currentQuizInput = [];  // 用於拼寫題存儲輸入
         let currentQuizCorrectText = "";
+        let pendingQuizEnd = false;
+        let remainingQuestionIndexes = [];
+        let currentQuestionIndex = null;
 
         // 障礙物生成控制
         let consecutiveObstaclesToSpawn = 0; 
@@ -1031,10 +1042,17 @@
             currentTargetObstacle = obstacle;
             obstacle.quizTaken = true;
             startClockSound();
+            pendingQuizEnd = false;
+            if (quizConfirmBtn) quizConfirmBtn.style.display = 'none';
             
-            // 隨機選一個單字
-            const qIndex = Math.floor(Math.random() * vocabularyData.length);
+            // 隨機選一個未使用的題目，全部用完才重置
+            if (remainingQuestionIndexes.length === 0) {
+                remainingQuestionIndexes = vocabularyData.map((_, idx) => idx);
+            }
+            const pickIndex = Math.floor(Math.random() * remainingQuestionIndexes.length);
+            const qIndex = remainingQuestionIndexes.splice(pickIndex, 1)[0];
             const qData = vocabularyData[qIndex];
+            currentQuestionIndex = qIndex;
             
             // 決定題型 (0:選擇題, 1:拼寫題, 2:重組題)
             // 如果單字包含空白(例如 phrases), 可以是重組題
@@ -1078,7 +1096,7 @@
                     quizInterval = null;
                     playSfx(sfxWrong);
                     showCorrectAnswer();
-                    setTimeout(() => endQuiz(false), 1000);
+                    showConfirmButton();
                 }
             }, 50);
             
@@ -1131,7 +1149,7 @@
                  btnElement.classList.add('wrong');
                  playSfx(sfxWrong);
                  showCorrectAnswer();
-                 setTimeout(() => endQuiz(false), 1000);
+                 showConfirmButton();
              }
         }
 
@@ -1234,7 +1252,7 @@
                     quizAnswerZone.style.color = '#e74c3c';
                     playSfx(sfxWrong);
                     showCorrectAnswer();
-                    setTimeout(() => endQuiz(false), 1000);
+                    showConfirmButton();
                 }
             }
         }
@@ -1258,6 +1276,12 @@
             }
         }
 
+        function showConfirmButton() {
+            pendingQuizEnd = true;
+            stopClockSound();
+            if (quizConfirmBtn) quizConfirmBtn.style.display = 'inline-block';
+        }
+
         function updateTimerBar() {
             const pct = (quizTimer / quizMaxTime) * 100;
             quizTimerFill.style.width = pct + '%';
@@ -1271,6 +1295,14 @@
                 clearInterval(quizInterval);
                 quizInterval = null;
             }
+            if (!isSuccess && currentQuestionIndex !== null) {
+                if (!remainingQuestionIndexes.includes(currentQuestionIndex)) {
+                    remainingQuestionIndexes.push(currentQuestionIndex);
+                }
+            }
+            currentQuestionIndex = null;
+            pendingQuizEnd = false;
+            if (quizConfirmBtn) quizConfirmBtn.style.display = 'none';
             stopClockSound();
             quizPanel.style.display = 'none';
             // 重置樣式
@@ -1467,6 +1499,7 @@
             gameState = 'PLAYING';
             score = 0; gameSpeed = 6;
             highBgmTriggered = false;
+            remainingQuestionIndexes = vocabularyData.map((_, idx) => idx);
             obstacles = []; player.scarf = []; player.vy = 0; player.x = 100;
             quizPanel.style.display = 'none';
             stopClockSound();
@@ -1557,6 +1590,12 @@
         }
 
         startBtn.onclick = (e) => { e.stopPropagation(); startGame(); };
+        if (quizConfirmBtn) {
+            quizConfirmBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (pendingQuizEnd) endQuiz(false);
+            };
+        }
         updateBtn.onclick = (e) => { 
             e.stopPropagation(); 
             if (swRegistration) {
